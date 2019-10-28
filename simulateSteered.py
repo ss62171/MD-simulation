@@ -6,6 +6,7 @@ import simtk.unit as u
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 beta = 0.0083144621
 spring_constant=0.0050
@@ -23,11 +24,11 @@ h_l_label = np.array([])
 h_l_val = np.array([])
 U = np.array([])
 K = 500
+pdb = PDBFile('input.pdb')
+forcefield = ForceField('amber99sb.xml', 'amber99_obc.xml')
 
 
 for k in range(K):
-        pdb = PDBFile('villin.pdb')
-        forcefield = ForceField('amber99sb.xml', 'amber99_obc.xml')
         system = forcefield.createSystem(pdb.topology, nonbondedMethod=NoCutoff)
         system.setParticleMass(0,0)
         integrator = LangevinIntegrator(300*kelvin, 1/picosecond, 0.002*picoseconds)
@@ -178,11 +179,16 @@ G_l = (G_l - 0.5)*delta_z
 G_val = np.array(G_val)
 G_val = G_val/den
 G_val = beta*(-np.log(G_val))*300
+# numpy.savetxt('y_axis_minimized.txt', G_val, fmt="%d")
+# numpy.savetxt('x_axis_minimized.txt', G_l, fmt="%d")
+
+# os.system('cat G_val > y_axis.txt')
+# os.system('cat G_l > x_axis.txt')
 
 plt.plot(G_l,G_val,'ro')
 plt.xlabel('Extension')
 plt.ylabel('G(z)')
 # plt.show()
-plt.savefig('plot.png', dpi=300)
+plt.savefig('plot_minimized.png', dpi=300)
 
 
