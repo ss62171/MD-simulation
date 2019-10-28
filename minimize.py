@@ -3,7 +3,6 @@ from simtk.openmm import *
 from simtk.unit import *
 from sys import stdout
 import simtk.unit as u
-import math
 import matplotlib.pyplot as plt
 import numpy as np
 
