@@ -4,6 +4,8 @@ from simtk.unit import *
 from sys import stdout
 import simtk.unit as u
 import math
+import matplotlib
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -73,7 +75,7 @@ for k in range(K):
         for i in range(100000):
                 prev_z = np.linalg.norm((pos[595]/u.angstrom)-pos[0]/u.angstrom)
                 ext = prev_z-init_z
-                u_ik.append(np.exp(-1*beta*spring_constant*0.5*((ext - (velocity*time_step*10))**2)))
+                u_ik.append(np.exp(-1*spring_constant*0.5*((ext - (velocity*time_step*10))**2)/(beta*300)))
                 temp_z.append(ext)
                 if(i==0):
                         temp += temp_z[i]
@@ -83,10 +85,10 @@ for k in range(K):
                 # print(int(ext/delta_z))
                 w = spring_constant*velocity*0.5*(velocity*((10*time_step)**2) - temp)
                 temp_label.append(int(ext/delta_z))
-                temp_val.append(np.exp(-1*w*beta))
+                temp_val.append(np.exp(-1*w/(300*beta)))
                 
                 temp_W.append(w)
-                temp_eta.append(np.exp(-1*w*beta))
+                temp_eta.append(np.exp(-1*w/(300*beta)))
                 alpha += velocity
                 pos = simulation.context.getState(getPositions=True).getPositions()   
 
@@ -178,17 +180,14 @@ G_l = np.array(G_l)
 G_l = (G_l - 0.5)*delta_z
 G_val = np.array(G_val)
 G_val = G_val/den
-G_val = beta*(-np.log(G_val))*300
-# numpy.savetxt('y_axis_minimized.txt', G_val, fmt="%d")
-# numpy.savetxt('x_axis_minimized.txt', G_l, fmt="%d")
-
-# os.system('cat G_val > y_axis.txt')
-# os.system('cat G_l > x_axis.txt')
+G_val = (-np.log(G_val))/(beta*300)
+numpy.savetxt('y_axis_minimized_0_pdf.txt', G_val, fmt="%d")
+numpy.savetxt('x_axis_minimized_0_pdf.txt', G_l, fmt="%d")
 
 plt.plot(G_l,G_val,'ro')
 plt.xlabel('Extension')
 plt.ylabel('G(z)')
 # plt.show()
-plt.savefig('plot_minimized.png', dpi=300)
+plt.savefig('plot_minimized_pdf.png', dpi=300)
 
 
