@@ -16,20 +16,23 @@ pullto=np.zeros(3)
 extension = []
 t = []
 spring_k = spring_constant * u.kilocalorie / (u.mole * u.angstrom * u.angstrom)
-z=np.array([])
-W = np.array([])
-eta = np.array([])
+z = []
+W = []
+eta = []
+h_l_label = []
+h_l_val = []
+U = []
+
 velocity = 0.02    #nm/ps
 time_step = 2e-15
 delta_z = 0.05
-h_l_label = np.array([])
-h_l_val = np.array([])
-U = np.array([])
 K = 500
 pdb = PDBFile('input.pdb')
 forcefield = ForceField('amber99sb.xml', 'amber99_obc.xml')
-
-
+last_index = 595
+init_index = 0
+total_particles = 596
+no_of_steps = 100000
 for k in range(K):
         system = forcefield.createSystem(pdb.topology, nonbondedMethod=NoCutoff)
         system.setParticleMass(0,0)
@@ -45,7 +48,7 @@ for k in range(K):
         pullforce.addPerParticleParameter("y0")
         pullforce.addPerParticleParameter("z0")
         pullforce.addGlobalParameter("spring_k", spring_k)
-        pullforce.addParticle(595, [pullto[0], pullto[1], pullto[2]])
+        pullforce.addParticle(last_index, [pullto[0], pullto[1], pullto[2]])
 
         system.addForce(pullforce)
         currentState = simulation.context.getState()
@@ -53,13 +56,13 @@ for k in range(K):
         simulation.context.setState(currentState)
         currentContext = simulation.context
 
-        vel = np.zeros((596,3))
+        vel = np.zeros((total_particles,3))
         vel = (vel * u.angstrom)/u.picosecond
         currentContext.setVelocities(vel)
         simulation.context.setPositions(pdb.positions)
         pos = simulation.context.getState(getPositions=True).getPositions()
-        b0_pos = pos[595]/u.angstrom
-        a0_pos = pos[0]/u.angstrom
+        b0_pos = pos[last_index]/u.angstrom
+        a0_pos = pos[init_index]/u.angstrom
 
         temp_z=[]
         temp_W = []
@@ -72,10 +75,10 @@ for k in range(K):
         temp_val = []
         u_ik = []
         print('value of k = {}' .format(k))
-        for i in range(100000):
-                prev_z = np.linalg.norm((pos[595]/u.angstrom)-pos[0]/u.angstrom)
+        for i in range(no_of_steps):
+                prev_z = np.linalg.norm((pos[last_index]/u.angstrom)-pos[init_index]/u.angstrom)
                 ext = prev_z-init_z
-                u_ik.append(np.exp(-1*spring_constant*0.5*((ext - (velocity*time_step*10))**2)/(beta*300)))
+                u_ik.append(np.exp(-1*spring_constant*0.5*((ext - (velocity*time_step))**2)/(beta*300)))
                 temp_z.append(ext)
                 if(i==0):
                         temp += temp_z[i]
@@ -83,7 +86,7 @@ for k in range(K):
                         temp += temp_z[i] + temp_z[i-1]
 
                 # print(int(ext/delta_z))
-                w = spring_constant*velocity*0.5*(velocity*((10*time_step)**2) - temp)
+                w = spring_constant*velocity*0.5*(velocity*((time_step*i)**2) - temp*time_step)
                 temp_label.append(int(ext/delta_z))
                 temp_val.append(np.exp(-1*w/(300*beta)))
                 
@@ -93,8 +96,8 @@ for k in range(K):
                 pos = simulation.context.getState(getPositions=True).getPositions()   
 
 
-                b_t = pos[595]/u.angstrom
-                a_t = pos[0]/u.angstrom
+                b_t = pos[last_index]/u.angstrom
+                a_t = pos[init_index]/u.angstrom
                 c_t = ((b_t-a0_pos)/np.linalg.norm(b_t-a0_pos))*alpha + b_t
                 c_t = np.squeeze(c_t)
                 dist_now = np.linalg.norm(b_t-c_t)
@@ -102,33 +105,31 @@ for k in range(K):
                 a = (dist_now - 1)/dist_now
                 force = spring_constant * a * (b_t - c_t)
                 F.append(np.linalg.norm(force))
-                dist = np.linalg.norm((pos[595]/u.angstrom)-(pos[0]/u.angstrom))
+                dist = np.linalg.norm((pos[last_index]/u.angstrom)-(pos[init_index]/u.angstrom))
                 extension.append(dist)
                 t.append(i)
                 pullto = c_t
-                pullforce.setParticleParameters(0,595,[pullto[0],pullto[1],pullto[2]])
+                pullforce.setParticleParameters(0,last_index,[pullto[0],pullto[1],pullto[2]])
                 pullforce.updateParametersInContext(currentContext)
                 simulation.step(10)
-        if(k==0):
-                z = np.array(temp_z)
-                W = np.array(temp_W)
-                eta = np.array(temp_eta)
-                h_l_label = np.array(temp_label)
-                h_l_val = np.array(temp_val)
-                U = np.array(u_ik)
-                positions = simulation.context.getState(getPositions=True).getPositions()
-                PDBFile.writeFile(simulation.topology, positions, open('output.pdb', 'w'))
+        z.append(temp_z)
+        W.append(temp_W)
+        eta.append(temp_eta)
+        h_l_label.append(temp_label)
+        h_l_val.append(temp_val)
+        U.append(u_ik)
 
-        else:
-                z = np.vstack((z,temp_z))
-                W = np.vstack((W,temp_W))
-                eta = np.vstack((eta,temp_eta))
-                h_l_label = np.vstack((h_l_label,temp_label))
-                h_l_val = np.vstack((h_l_val,temp_val))
-                U = np.vstack((U,u_ik))
+z = np.array((z))
+W = np.array((W))
+eta = np.array((eta))
+h_l_label = np.array((h_l_label))
+h_l_val = np.array((h_l_val))
+U = np.array((U))
 
 eta_final = np.mean(eta,axis=0)
 U_final = np.mean(U,axis=0)
+
+
 
 total_label = []
 total_val =  []
@@ -189,5 +190,3 @@ plt.xlabel('Extension')
 plt.ylabel('G(z)')
 # plt.show()
 plt.savefig('plot_minimized_pdf.png', dpi=300)
-
-
